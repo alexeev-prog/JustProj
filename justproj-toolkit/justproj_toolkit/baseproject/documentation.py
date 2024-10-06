@@ -1,9 +1,9 @@
 import os
 from abc import ABC, abstractmethod, ABCMeta
+from enum import Enum
 from uuid import uuid4
 from typing import Dict, List, Tuple, Callable, Any
 from pycolor_palette_loguru import info_message, debug_message, warn_message, error_message
-from rich import print as pprint
 
 from justproj_toolkit.utils import get_current_datetime
 
@@ -211,13 +211,20 @@ class DocumentFolder:
 		os.makedirs(self.folderpath, exist_ok=True)
 		self.sections = sections
 
+		with open(os.path.join(self.folderpath, 'index.md'), 'w') as file:
+			file.write(f'# {self.name}\n\n')
+
+			for section in self.sections:
+				file.write(f'## {section.title}\n{section.introduction}\n')
+
 
 class DocumentManager:
 	"""
 	This class describes a document manager.
 	"""
 
-	def __init__(self, project_name: str, project_description: str, project_root_dir: str, folders: List[DocumentFolder]):
+	def __init__(self, project_name: str, short_project_introduction: str, project_description: str, repo_author: str, repo_name: str, 
+				project_root_dir: str, folders: List[DocumentFolder]):
 		"""
 		Constructs a new instance.
 
@@ -231,11 +238,62 @@ class DocumentManager:
 		:type       folders:              List[DocumentFolder]
 		"""
 		self.project_name = project_name
+		self.short_project_introduction = short_project_introduction
 		self.project_description = project_description
 		self.project_root_dir = project_root_dir
 		self.folders = folders
+		self.repo_author = repo_author
+		self.repo_name = repo_name
 
 		os.makedirs(self.project_root_dir, exist_ok=True)
+
+	def generate_readme(self):
+		"""
+		Generate readme file
+		"""
+		debug_message('Generate README...')
+		page = f'''# {self.repo_name}
+
+<p align="center">{self.short_project_introduction}</p>
+<br>
+<p align="center">
+	<img src="https://img.shields.io/github/languages/top/{self.repo_author}/{self.repo_name}?style=for-the-badge">
+	<img src="https://img.shields.io/github/languages/count/{self.repo_author}/{self.repo_name}?style=for-the-badge">
+	<img src="https://img.shields.io/github/license/{self.repo_author}/{self.repo_name}?style=for-the-badge">
+	<img src="https://img.shields.io/github/stars/{self.repo_author}/{self.repo_name}?style=for-the-badge">
+	<img src="https://img.shields.io/github/issues/{self.repo_author}/{self.repo_name}?style=for-the-badge">
+	<img src="https://img.shields.io/github/last-commit/{self.repo_author}/{self.repo_name}?style=for-the-badge">
+</p>
+
+{self.project_description}
+
+## Folders
+DocumentFolders (is not directories):\n
+'''
+		for folder in self.folders:
+			page += f'### {folder.name}\n'
+			page += f'Path: {folder.folderpath}\n'
+
+			for section in folder.sections:
+				page += f'\n#### {section.title}\n'
+				page += f'{section.introduction}\n'
+
+				if len(section.linked_sections) > 0:
+					page += '\nLinked sections:\n\n'
+
+					for linked_section in section.linked_sections:
+						page += f' + {linked_section.title}\n'
+
+				if len(section.linked_subsections) > 0:
+					page += '\nLinked subsections:\n\n'
+
+					for linked_subsection in section.linked_subsections:
+						page += f' + {linked_subsection}\n'
+
+		with open(os.path.join(self.project_root_dir, 'README.md'), 'w') as file:
+			file.write(page)
+
+		info_message(f'README generated successfully!')
 
 	def generate_pages(self):
 		"""
@@ -257,3 +315,151 @@ class DocumentManager:
 						file.write(f'{line}\n')
 
 		info_message('Pages successfully generated!')
+
+
+class ProjectTemplate(Enum):
+	BASE = 0
+	CPP = 1
+	PYTHON = 2
+
+
+class ProjectStructureGenerator:
+	"""
+	This class describes a project structure generator.
+	"""
+
+	def __init__(self, project_root_dir: str,
+					project_template: ProjectTemplate):
+		"""
+		Constructs a new instance.
+
+		:param      project_root_dir:  The project root dir
+		:type       project_root_dir:  str
+		:param      project_template:  The project template
+		:type       project_template:  ProjectTemplate
+		"""
+		self.project_root_dir = project_root_dir
+		self.project_template = project_template
+		os.makedirs(self.project_root_dir, exist_ok=True)
+		self.structure = {}
+
+	def add_directory(self, dir_name: str, dir_files: List[str]):
+		"""
+		Adds a directory.
+
+		:param      dir_name:   The dir name
+		:type       dir_name:   str
+		:param      dir_files:  The dir files
+		:type       dir_files:  List[str]
+		"""
+		self.structure[dir_name] = {
+			'basic': dir_files
+		}
+		info_message(f'Add new directory: {dir_name}')
+
+	def generate_structure(self):
+		"""
+		Generate project file structure
+		"""
+		debug_message('Generate structure...')
+		self.structure['.'] = {
+			'basic': ['README.md', 'LICENSE', 'BUILDING.md', 'CHANGELOG.md', 'CODE_OF_CONDUCT.md',
+					'CONTRIBUTING.md', 'HACKING.md', 'SECURITY.md'],
+		}
+
+		if self.project_template == ProjectTemplate.CPP:
+			self.structure['.']['basic'].append('CMakeLists.txt')
+			self.structure['.']['basic'].append('CMakeUserPresets.json')
+			self.structure['.']['basic'].append('CMakePresets.json')
+			self.structure['.']['basic'].append('conanfile.py')
+			self.structure['.']['basic'].append('.clang-format')
+			self.structure['.']['basic'].append('.clang-tidy')
+			self.structure['.']['basic'].append('.clangd')
+		elif self.project_template == ProjectTemplate.PYTHON:
+			self.structure['.']['basic'].append('pyproject.toml')
+			self.structure['.']['basic'].append('requirements.txt')
+
+		for directory, content in self.structure.items():
+			debug_message(f'[Structor Generator] Create files in directory "{directory}"')
+
+			if directory != '.':
+				current_dir = os.path.join(self.project_root_dir, directory)
+				os.makedirs(os.path.join(self.project_root_dir, directory), exist_ok=True)
+			else:
+				current_dir = self.project_root_dir
+
+			for file in content['basic']:
+				debug_message(f'[Structor Generator] {file} processing...')
+				with open(os.path.join(current_dir, file), 'w') as file:
+					file.write(f'# {file}\n')
+
+		info_message('Structure generated successfully!')
+
+
+class ProjectManager:
+	"""
+	This class describes a project manager.
+	"""
+
+	def __init__(self, project_name: str, short_project_introduction: str, project_description: str, repo_author: str, repo_name: str, project_root_dir: str,
+						project_template: ProjectTemplate, folders: List[DocumentFolder], sections: List[DocumentSection], github: bool=True):
+		"""
+		Constructs a new instance.
+
+		:param      project_name:         The project name
+		:type       project_name:         str
+		:param      project_description:  The project description
+		:type       project_description:  str
+		:param      repo_author:          The repo author
+		:type       repo_author:          str
+		:param      repo_name:            The repo name
+		:type       repo_name:            str
+		:param      project_root_dir:     The project root dir
+		:type       project_root_dir:     str
+		:param      project_template:     The project template
+		:type       project_template:     ProjectTemplate
+		:param      folders:              The folders
+		:type       folders:              List[DocumentFolder]
+		:param      sections:             The sections
+		:type       sections:             List[DocumentSection]
+		"""
+		self.project_root_dir = project_root_dir
+		self.project_name = project_name
+		self.project_description = project_description
+		self.short_project_introduction = short_project_introduction
+		self.repo_author = repo_author
+		self.repo_name = repo_name
+		self.project_template = project_template
+		self.folders = folders
+		self.sections = sections
+		self.is_github = github
+
+		if self.is_github:
+			self.url = f'https://github.com/{repo_author}/{repo_name}'
+		else:
+			warn_message('JustProj support only GitHub')
+
+		self.structure_manager = ProjectStructureGenerator(project_root_dir, project_template)
+		self.document_manager = DocumentManager(project_name, short_project_introduction, project_description, repo_author, repo_name, 
+				project_root_dir, folders)
+
+	def add_directory_to_structure(self, dir_name: str, files: List[str]):
+		"""
+		Adds a directory to structure.
+
+		:param      dir_name:  The dir name
+		:type       dir_name:  str
+		:param      files:     The files
+		:type       files:     List[str]
+		"""
+		self.structure_manager.add_directory(dir_name, files)
+
+	def process_project(self):
+		"""
+		Process project creation
+		"""
+		info_message(f'Process project "{self.project_name}" creation...')
+		self.structure_manager.generate_structure()
+		self.document_manager.generate_pages()
+		self.document_manager.generate_readme()
+		info_message('Project created successfully!')
