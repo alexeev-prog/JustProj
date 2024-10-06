@@ -1,9 +1,5 @@
 from justproj_toolkit.baseproject.documentation import InitiationSection, DocumentSubsection, DocumentFolder, ProjectManager, ProjectTemplate
 
-project_name = input('Project name > ')
-project_short_description = input('Project short description > ')
-project_description = input("Project description > ")
-
 s1 = InitiationSection('Introduction', 'An introduction to JustProj Toolkit', {'Language': 'Python with some libs'})
 s2 = InitiationSection('Introduction 2', 'An another introduction number 2 to JustProj Toolkit', {'Number': 'version 2'})
 ss1 = DocumentSubsection('InitiationSubSection', {'Test2': 'hi'}, s1)

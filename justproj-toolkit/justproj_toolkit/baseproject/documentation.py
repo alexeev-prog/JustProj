@@ -1,9 +1,8 @@
 import os
-from abc import ABC, abstractmethod, ABCMeta
+from abc import ABC
 from enum import Enum
-from uuid import uuid4
-from typing import Dict, List, Tuple, Callable, Any
-from pycolor_palette_loguru import info_message, debug_message, warn_message, error_message
+from typing import Dict, List, Any
+from pycolor_palette_loguru import info_message, debug_message, warn_message
 
 from justproj_toolkit.utils import get_current_datetime
 
@@ -12,7 +11,6 @@ class DocumentSubsection(ABC):
 	"""
 	This class describes a document subsection.
 	"""
-	__metaclass__ = ABCMeta
 
 	def __init__(self, title: str, content: Dict[str, Any], main_section: "DocumentSection"):
 		"""
@@ -45,7 +43,6 @@ class DocumentSection(ABC):
 	"""
 	This abstract metaclass describes a documentation section.
 	"""
-	__metaclass__ = ABCMeta
 
 	def __init__(self, title: str, introduction: str, content: Dict[str, Any]):
 		"""
@@ -179,7 +176,7 @@ class InitiationSection(DocumentSection):
 		:param      content:       The content
 		:type       content:       Dict[str, Any]
 		"""
-		self.title = title
+		self.title = f'Initiation-{title}'
 		self.introduction = introduction
 		self.content = content
 		self.linked_sections = {}
@@ -211,6 +208,12 @@ class DocumentFolder:
 		os.makedirs(self.folderpath, exist_ok=True)
 		self.sections = sections
 
+		self._create_index_file()
+
+	def _create_index_file(self):
+		"""
+		Creates an index file.
+		"""
 		with open(os.path.join(self.folderpath, 'index.md'), 'w') as file:
 			file.write(f'# {self.name}\n\n')
 
@@ -293,7 +296,7 @@ DocumentFolders (is not directories):\n
 		with open(os.path.join(self.project_root_dir, 'README.md'), 'w') as file:
 			file.write(page)
 
-		info_message(f'README generated successfully!')
+		info_message('README generated successfully!')
 
 	def generate_pages(self):
 		"""
@@ -368,17 +371,17 @@ class ProjectStructureGenerator:
 		}
 
 		if self.project_template == ProjectTemplate.CPP:
-			self.structure['.']['basic'].append('CMakeLists.txt')
-			self.structure['.']['basic'].append('CMakeUserPresets.json')
-			self.structure['.']['basic'].append('CMakePresets.json')
-			self.structure['.']['basic'].append('conanfile.py')
-			self.structure['.']['basic'].append('.clang-format')
-			self.structure['.']['basic'].append('.clang-tidy')
-			self.structure['.']['basic'].append('.clangd')
+			files = ['CMakeLists.txt', 'CMakeUserPresets.json', 'CMakePresets.json', 'conanfile.py',
+					'.clang-format', '.clang-tidy', '.clangd']
+			
+			for file in files:
+				self.structure['.']['basic'].append(file)
 		elif self.project_template == ProjectTemplate.PYTHON:
-			self.structure['.']['basic'].append('pyproject.toml')
-			self.structure['.']['basic'].append('requirements.txt')
-
+			files = ['pyproject.toml', 'requirements.txt']
+			
+			for file in files:
+				self.structure['.']['basic'].append(file)
+				
 		for directory, content in self.structure.items():
 			debug_message(f'[Structor Generator] Create files in directory "{directory}"')
 
